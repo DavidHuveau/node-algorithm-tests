@@ -38,8 +38,8 @@ const NON_RECURRING_EVENTS: Event[] = [
   // past recurring
   {
     kind: "opening",
-    starts_at: new Date("2014-08-04 09:30"), // Monday
-    ends_at: new Date("2014-08-04 12:30"),
+    starts_at: new Date("2014-08-04 08:00"), // Monday
+    ends_at: new Date("2014-08-04 12:00"),
     weekly_recurring: false,
   },
   // past recurring
@@ -82,9 +82,7 @@ describe("filterAvailabilitiesForNext7Days", () => {
       const result = filterAvailabilitiesForNext7Days([...RECURRING_EVENTS, RECURRING_EVENT_IN_THE_WEEK], testDate);
 
       expect(result.length).toBe(1);
-      expect(result[0].starts_at).toEqual(new Date("2014-08-11 08:00"));
-      expect(result[0].ends_at).toEqual(new Date("2014-08-11 10:00"));
-      expect(result[0].weekly_recurring).toEqual(true);
+      expect(result).toEqual([RECURRING_EVENT_IN_THE_WEEK]);
     });
   });
 
@@ -93,9 +91,17 @@ describe("filterAvailabilitiesForNext7Days", () => {
       const result = filterAvailabilitiesForNext7Days([...NON_RECURRING_EVENTS, NON_RECURRING_EVENT_IN_THE_WEEK], testDate);
 
       expect(result.length).toBe(1);
-      expect(result[0].starts_at).toEqual(new Date("2014-08-11 08:00"));
-      expect(result[0].ends_at).toEqual(new Date("2014-08-11 10:00"));
-      expect(result[0].weekly_recurring).toEqual(false);
+      expect(result).toEqual([NON_RECURRING_EVENT_IN_THE_WEEK]);
+    });
+  });
+
+  describe("with recurring events & non recurring events", () => {
+    test("retrieves for the event in the current week", () => {
+      const events = [...RECURRING_EVENTS, ...NON_RECURRING_EVENTS, RECURRING_EVENT_IN_THE_WEEK, NON_RECURRING_EVENT_IN_THE_WEEK];
+      const result = filterAvailabilitiesForNext7Days(events, testDate);
+
+      expect(result.length).toBe(2);
+      expect(result).toEqual([NON_RECURRING_EVENT_IN_THE_WEEK, RECURRING_EVENT_IN_THE_WEEK]);
     });
   });
 });
@@ -114,45 +120,34 @@ describe("getAvailabilities", () => {
         expect(availabilities.get(i.toString())?.slots).toEqual([]);
       }
     });
+
+    describe("with events", () => {
+      test.only("taking appointments into account when determining availabilities", () => {
+        const events: Event[] = [
+          {
+            kind: "appointment",
+            starts_at: new Date("2014-08-11 10:30"),
+            ends_at: new Date("2014-08-11 11:30"),
+          },
+          {
+            kind: "opening",
+            starts_at: new Date("2014-08-04 09:30"),
+            ends_at: new Date("2014-08-04 12:30"),
+            weekly_recurring: true,
+          },
+        ];
+        const availabilities = getAvailabilities(events, testDate);
+        expect(availabilities.size).toBe(7);
+        expect(availabilities.get("0")?.date.getTime()).toEqual(testDate.getTime());
+        expect(availabilities.get("0")?.slots).toEqual([]);
+        expect(availabilities.get("1")?.date.getTime()).toEqual(new Date("2014-08-11").getTime());
+        expect(availabilities.get("1")?.slots).toEqual(["9:30", "10:00", "11:30", "12:00"]);
+        expect(availabilities.get("2")?.slots).toEqual([]);
+        expect(availabilities.get("3")?.slots).toEqual([]);
+        expect(availabilities.get("4")?.slots).toEqual([]);
+        expect(availabilities.get("5")?.slots).toEqual([]);
+        expect(availabilities.get("6")?.slots).toEqual([]);
+      });
+    });
   });
-  //       },
-  //       // non recurring in the week
-  //       {
-  //         kind: "opening",
-  //         starts_at: new Date("2014-08-12 09:00"), // Tuesday
-  //         ends_at: new Date("2014-08-12 12:00"),
-  //       },
-  //     ];
-
-  //     const availabilities = getAvailabilities(events, testDate);
-  //     expect(availabilities.size).toBe(7);
-
-  //     expect(availabilities.get("0")?.date.getTime()).toEqual(testDate.getTime());
-  //     expect(availabilities.get("0")?.slots).toEqual([]);
-
-  //     expect(availabilities.get("1")?.date.getTime()).toEqual(new Date("2014-08-11").getTime());
-  //     expect(availabilities.get("1")?.slots).toEqual(["9:30", "10:00", "10:30", "11:00", "11:30", "12:00"]);
-
-  //     expect(availabilities.get("2")?.date.getTime()).toEqual(new Date("2014-08-12").getTime());
-  //     expect(availabilities.get("2")?.slots).toEqual(["9:00", "9:30", "10:00", "10:30", "11:00", "11:30"]);
-  //   });
-
-  //   test("test 2", () => {
-  //     const availabilities = getAvailabilities(RECURRING_EVENTS, testDate);
-  //     expect(availabilities.size).toBe(7);
-
-  //     expect(availabilities.get("0")?.date.getTime()).toEqual(testDate.getTime());
-  //     expect(availabilities.get("0")?.slots).toEqual([]);
-
-  //     expect(availabilities.get("1")?.date.getTime()).toEqual(new Date("2014-08-11").getTime());
-  //     expect(availabilities.get("1")?.slots).toEqual(["8:00", "8:30", "9:00", "9:30"]);
-
-  //     // se baser sur le premier test pour vérifier les dates aussi
-  //     expect(availabilities.get("2")?.slots).toEqual([]);
-  //     expect(availabilities.get("3")?.slots).toEqual([]);
-  //     expect(availabilities.get("4")?.slots).toEqual([]);
-  //     expect(availabilities.get("5")?.slots).toEqual([]);
-  //     expect(availabilities.get("6")?.slots).toEqual([]);
-  //   });
-  // });
 });

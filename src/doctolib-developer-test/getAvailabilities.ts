@@ -7,6 +7,8 @@ export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Dat
   const nearestRecurringEventsByDayOfWeek: { [dayOfWeek: number]: Event } = {};
 
   events.forEach((event) => {
+    if (event.kind !== "opening") return;
+
     const eventStartMoment = moment(event.starts_at);
 
     if (event.weekly_recurring) {
@@ -69,17 +71,16 @@ const getAvailabilities = (events: Event[], date: Date): AvailabilitiesMap => {
   }
 
   const filtredEvents = filterAvailabilitiesForNext7Days(events, date);
-  filtredEvents.forEach((event) => {
+  [...filtredEvents, ...events.filter((event) => event.kind === "appointment")].forEach((event) => {
     for (let date = moment(event.starts_at); date.isBefore(event.ends_at); date.add(30, "minutes")) {
       const day = availabilities.get(date.format("d"));
       if (event.kind === "opening") {
         day.slots.push(date.format("H:mm"));
       } else if (event.kind === "appointment") {
-        day.slots = day.slots.filter((slot: string) => slot === date.format("H:mm"));
+        day.slots = [...day.slots.filter((slot: string) => slot !== date.format("H:mm"))];
       }
     }
   });
-
   return availabilities;
 };
 

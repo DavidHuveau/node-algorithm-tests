@@ -1,6 +1,6 @@
 export type Availability = {
   date: Date;
-  slots: String[];
+  slots: string[];
 };
 
 export type Event = {
