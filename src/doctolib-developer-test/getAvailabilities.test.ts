@@ -122,7 +122,7 @@ describe("getAvailabilities", () => {
     });
 
     describe("with events", () => {
-      test.only("taking appointments into account when determining availabilities", () => {
+      test("taking appointments into account when determining availabilities", () => {
         const events: Event[] = [
           {
             kind: "appointment",

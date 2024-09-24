@@ -39,12 +39,13 @@ export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Dat
   Object.values(nearestRecurringEventsByDayOfWeek).forEach((event) => {
     for (let i = 0; i < 7; i++) {
       const currentDay = startMoment.clone().add(i, "days");
+      const eventStartMoment = moment(event.starts_at);
 
-      if (currentDay.isoWeekday() === moment(event.starts_at).isoWeekday()) {
+      if (currentDay.isoWeekday() === eventStartMoment.isoWeekday()) {
         const recurringEventStart = currentDay.clone().set({
-          hour: moment(event.starts_at).hour(),
-          minute: moment(event.starts_at).minute(),
-          second: moment(event.starts_at).second(),
+          hour: eventStartMoment.hour(),
+          minute: eventStartMoment.minute(),
+          second: eventStartMoment.second(),
         });
         const recurringEventEnd = recurringEventStart.clone().add(moment(event.ends_at).diff(event.starts_at));
         filteredEvents.push({
@@ -61,9 +62,10 @@ export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Dat
 
 const getAvailabilities = (events: Event[], date: Date): AvailabilitiesMap => {
   const availabilities = new Map();
+  const dateMoment = moment(date);
 
   for (let i = 0; i < 7; ++i) {
-    const tmpDate = moment(date).add(i, "days");
+    const tmpDate = dateMoment.clone().add(i, "days");
     availabilities.set(i.toString(), {
       date: tmpDate.toDate(),
       slots: [],
