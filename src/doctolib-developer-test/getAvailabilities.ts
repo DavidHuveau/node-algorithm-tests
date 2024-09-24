@@ -1,6 +1,23 @@
 import moment from "moment";
 import { AvailabilitiesMap, Event } from "./type";
 
+const addRecurringEvent = (event: Event, currentDay: moment.Moment, filteredEvents: Event[]): void => {
+  const eventStartMoment = moment(event.starts_at);
+
+  const recurringEventStart = currentDay.clone().set({
+    hour: eventStartMoment.hour(),
+    minute: eventStartMoment.minute(),
+    second: eventStartMoment.second(),
+  });
+  const recurringEventEnd = recurringEventStart.clone().add(moment(event.ends_at).diff(event.starts_at));
+
+  filteredEvents.push({
+    ...event,
+    starts_at: recurringEventStart.toDate(),
+    ends_at: recurringEventEnd.toDate(),
+  });
+};
+
 export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Date): Event[] => {
   const filteredEvents: Event[] = [];
   const startMoment = moment(startDate);
@@ -42,17 +59,7 @@ export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Dat
       const eventStartMoment = moment(event.starts_at);
 
       if (currentDay.isoWeekday() === eventStartMoment.isoWeekday()) {
-        const recurringEventStart = currentDay.clone().set({
-          hour: eventStartMoment.hour(),
-          minute: eventStartMoment.minute(),
-          second: eventStartMoment.second(),
-        });
-        const recurringEventEnd = recurringEventStart.clone().add(moment(event.ends_at).diff(event.starts_at));
-        filteredEvents.push({
-          ...event,
-          starts_at: recurringEventStart.toDate(),
-          ends_at: recurringEventEnd.toDate(),
-        });
+        addRecurringEvent(event, currentDay, filteredEvents);
       }
     }
   });
