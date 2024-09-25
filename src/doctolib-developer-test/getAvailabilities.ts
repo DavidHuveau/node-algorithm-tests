@@ -18,6 +18,37 @@ const addRecurringEvent = (event: Event, currentDay: moment.Moment, filteredEven
   });
 };
 
+const handleWeeklyRecurringEvents = (
+  event: Event,
+  startMoment: moment.Moment,
+  nearestRecurringEventsByDayOfWeek: { [dayOfWeek: number]: Event },
+): void => {
+  const eventStartMoment = moment(event.starts_at);
+  for (let i = 0; i < 7; i++) {
+    const currentDay = startMoment.clone().add(i, "days");
+
+    if (currentDay.isoWeekday() === eventStartMoment.isoWeekday()) {
+      if (eventStartMoment.startOf("day").isSameOrBefore(currentDay.startOf("day"))) {
+        const existingEvent = nearestRecurringEventsByDayOfWeek[currentDay.isoWeekday()];
+
+        if (!existingEvent || moment(existingEvent.starts_at).isBefore(eventStartMoment)) {
+          nearestRecurringEventsByDayOfWeek[currentDay.isoWeekday()] = event;
+        }
+      }
+    }
+  }
+};
+
+const handleNonRecurringEvents = (event: Event, startMoment: moment.Moment, filteredEvents: Event[]): void => {
+  const eventStartMoment = moment(event.starts_at);
+  if (
+    eventStartMoment.startOf("day").isSameOrAfter(startMoment.startOf("day")) &&
+    eventStartMoment.startOf("day").isBefore(startMoment.clone().add(7, "days").startOf("day"))
+  ) {
+    filteredEvents.push(event);
+  }
+};
+
 export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Date): Event[] => {
   const filteredEvents: Event[] = [];
   const startMoment = moment(startDate);
@@ -26,30 +57,10 @@ export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Dat
   events.forEach((event) => {
     if (event.kind !== "opening") return;
 
-    const eventStartMoment = moment(event.starts_at);
-
     if (event.weekly_recurring) {
-      for (let i = 0; i < 7; i++) {
-        const currentDay = startMoment.clone().add(i, "days");
-
-        if (currentDay.isoWeekday() === eventStartMoment.isoWeekday()) {
-          // sets both times to 00:00:00, so we can compare dates only
-          if (eventStartMoment.startOf("day").isSameOrBefore(currentDay.startOf("day"))) {
-            const existingEvent = nearestRecurringEventsByDayOfWeek[currentDay.isoWeekday()];
-
-            if (!existingEvent || moment(existingEvent.starts_at).isBefore(eventStartMoment)) {
-              nearestRecurringEventsByDayOfWeek[currentDay.isoWeekday()] = event;
-            }
-          }
-        }
-      }
+      handleWeeklyRecurringEvents(event, startMoment, nearestRecurringEventsByDayOfWeek);
     } else {
-      if (
-        eventStartMoment.startOf("day").isSameOrAfter(startMoment.startOf("day")) &&
-        eventStartMoment.startOf("day").isBefore(startMoment.clone().add(7, "days").startOf("day"))
-      ) {
-        filteredEvents.push(event);
-      }
+      handleNonRecurringEvents(event, startMoment, filteredEvents);
     }
   });
 
@@ -67,9 +78,8 @@ export const filterAvailabilitiesForNext7Days = (events: Event[], startDate: Dat
   return filteredEvents;
 };
 
-const getAvailabilities = (events: Event[], date: Date): AvailabilitiesMap => {
+const initializeAvailabilities = (dateMoment: moment.Moment): AvailabilitiesMap => {
   const availabilities = new Map();
-  const dateMoment = moment(date);
 
   for (let i = 0; i < 7; ++i) {
     const tmpDate = dateMoment.clone().add(i, "days");
@@ -78,11 +88,18 @@ const getAvailabilities = (events: Event[], date: Date): AvailabilitiesMap => {
       slots: [],
     });
   }
+  return availabilities;
+};
 
+const getAvailabilities = (events: Event[], date: Date): AvailabilitiesMap => {
+  const availabilities = initializeAvailabilities(moment(date));
   const filtredEvents = filterAvailabilitiesForNext7Days(events, date);
+
   [...filtredEvents, ...events.filter((event) => event.kind === "appointment")].forEach((event) => {
     for (let date = moment(event.starts_at); date.isBefore(event.ends_at); date.add(30, "minutes")) {
       const day = availabilities.get(date.format("d"));
+      if (!day) return;
+
       if (event.kind === "opening") {
         day.slots.push(date.format("H:mm"));
       } else if (event.kind === "appointment") {
